@@ -24,10 +24,28 @@ DelayProjectAudioProcessor::DelayProjectAudioProcessor()
                        )
 #endif
 {
+    mCircularBufferLeft = nullptr;
+    mCircularBufferRight = nullptr;
+    mCircularBufferWriteHead = 0;
+    mCircularBufferLength = 0;
+
 }
 
 DelayProjectAudioProcessor::~DelayProjectAudioProcessor()
 {
+    
+    if (mCircularBufferLeft != nullptr){
+        delete [] mCircularBufferLeft;
+        mCircularBufferLeft = nullptr;
+       }
+       
+       if (mCircularBufferRight != nullptr){
+          delete [] mCircularBufferRight;
+          mCircularBufferRight = nullptr;
+       }
+    
+    
+    
 }
 
 //==============================================================================
@@ -97,6 +115,21 @@ void DelayProjectAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
 {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
+    
+    mCircularBufferLength = sampleRate * MAX_DELAY_TIME;
+    
+    
+    if (mCircularBufferLeft == nullptr){
+        mCircularBufferLeft = new float[mCircularBufferLength];
+    }
+    
+    if (mCircularBufferRight == nullptr){
+        mCircularBufferRight = new float[mCircularBufferLength];
+    }
+    
+    mCircularBufferWriteHead = 0;
+    
+    
 }
 
 void DelayProjectAudioProcessor::releaseResources()
@@ -144,18 +177,25 @@ void DelayProjectAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiB
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    // This is the place where you'd normally do the guts of your plugin's
-    // audio processing...
-    // Make sure to reset the state if your inner loop is processing
-    // the samples and the outer loop is handling the channels.
-    // Alternatively, you can process the samples with the channels
-    // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
-    {
-        auto* channelData = buffer.getWritePointer (channel);
+    float* leftChannel = buffer.getWritePointer(0);
+    float* rightChannel = buffer.getWritePointer(1);
 
-        // ..do something to the data...
+    
+    
+    for (int i = 0; i < buffer.getNumSamples(); i++){
+        
+        mCircularBufferLeft[mCircularBufferWriteHead] = leftChannel[i];
+        mCircularBufferRight[mCircularBufferWriteHead] = rightChannel[i];
+        
+        mCircularBufferWriteHead++;
+        
+        if (mCircularBufferWriteHead >= mCircularBufferLength) {
+            mCircularBufferWriteHead = 0;
+            }
+    
     }
+    
+    
 }
 
 //==============================================================================
